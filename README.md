@@ -1,5 +1,7 @@
 # Controle de Pagamentos
 
+> **Acesso ao app:** [https://pagamentox.netlify.app/](https://pagamentox.netlify.app/)
+
 PWA (Progressive Web App) para acompanhar contas fixas, boletos e assinaturas, com dashboard de gastos, marcação de pagamento e alertas **Web Push** de vencimento mesmo com o app fechado.
 
 A versão publicada é **100% estática** (Netlify) e usa o **Supabase** como backend (Auth + PostgREST + Edge Functions + pg_cron). Existe também um backend legado **Node/Express + MySQL** mantido apenas para desenvolvimento local.
