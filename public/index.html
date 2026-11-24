@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="bg-black">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Controle de Pagamentos</title>
+  <meta name="description" content="Contas fixas, boletos e assinaturas com alertas de vencimento.">
+  <meta name="theme-color" content="#000000">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Pagamentos">
+  <link rel="stylesheet" href="/css/app.css">
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+</head>
+<body class="min-h-screen bg-black text-zinc-100 antialiased">
+
+  <div id="toast-area" class="pointer-events-none fixed inset-x-0 top-0 z-[60] flex flex-col items-center gap-2 p-3 safe-top"></div>
+
+  <!-- ===================== LOGIN / CADASTRO ===================== -->
+  <main id="view-auth" class="hidden min-h-screen items-center justify-center px-4 py-10 safe-top">
+    <div class="mx-auto w-full max-w-sm">
+      <div class="mb-8 text-center">
+        <svg class="mx-auto mb-4 h-14 w-14" viewBox="0 0 64 64" aria-hidden="true">
+          <circle cx="32" cy="32" r="30" fill="#16a34a"></circle>
+          <path d="M19 33l9 9 17-19" fill="none" stroke="#000" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+        <h1 class="text-2xl font-semibold">Controle de Pagamentos</h1>
+        <p class="mt-1 text-sm text-zinc-500">Suas contas fixas, boletos e assinaturas em um só lugar.</p>
+      </div>
+
+      <div class="rounded-2xl border border-zinc-800 bg-zinc-950 p-5">
+        <div class="mb-5 grid grid-cols-2 rounded-lg bg-zinc-900 p-1 text-sm">
+          <button type="button" id="aba-login" data-acao="aba" data-aba="login" class="rounded-md bg-green-600 py-2 font-medium text-white">Entrar</button>
+          <button type="button" id="aba-cadastro" data-acao="aba" data-aba="cadastro" class="rounded-md py-2 font-medium text-zinc-400">Criar conta</button>
+        </div>
+
+        <form id="form-login" class="space-y-4" novalidate>
+          <div>
+            <label for="login-email" class="mb-1 block text-sm text-zinc-400">E-mail</label>
+            <input id="login-email" name="email" type="email" autocomplete="email" required class="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-base text-zinc-100 placeholder-zinc-600 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500" placeholder="voce@exemplo.com">
+          </div>
+          <div>
+            <label for="login-senha" class="mb-1 block text-sm text-zinc-400">Senha</label>
+            <input id="login-senha" name="senha" type="password" autocomplete="current-password" required class="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-base text-zinc-100 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">
+          </div>
+          <button type="submit" class="w-full rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-500 disabled:opacity-60">Entrar</button>
+        </form>
+
+        <form id="form-cadastro" class="hidden space-y-4" novalidate>
+          <div>
+            <label for="cad-nome" class="mb-1 block text-sm text-zinc-400">Nome</label>
+            <input id="cad-nome" name="nome" type="text" autocomplete="name" required class="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-base text-zinc-100 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">
+          </div>
+          <div>
+            <label for="cad-email" class="mb-1 block text-sm text-zinc-400">E-mail</label>
+            <input id="cad-email" name="email" type="email" autocomplete="email" required class="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-base text-zinc-100 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">
+          </div>
+          <div>
+            <label for="cad-senha" class="mb-1 block text-sm text-zinc-400">Senha <span class="text-zinc-600">(mínimo 8 caracteres)</span></label>
+            <input id="cad-senha" name="senha" type="password" autocomplete="new-password" minlength="8" required class="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-base text-zinc-100 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">
+          </div>
+          <button type="submit" class="w-full rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-500 disabled:opacity-60">Criar conta</button>
+        </form>
+
+        <p id="auth-erro" role="alert" class="mt-4 hidden text-sm text-red-400"></p>
+      </div>
+    </div>
+  </main>
+
+  <!-- ===================== APLICATIVO ===================== -->
+  <div id="view-app" class="hidden">
+    <header class="sticky top-0 z-30 border-b border-zinc-900 bg-black/90 backdrop-blur safe-top">
+      <div class="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
+        <div class="flex items-center gap-2">
+          <svg class="h-7 w-7" viewBox="0 0 64 64" aria-hidden="true">
+            <circle cx="32" cy="32" r="30" fill="#16a34a"></circle>
+            <path d="M19 33l9 9 17-19" fill="none" stroke="#000" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+          <span class="font-semibold">Pagamentos</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <span id="usuario-nome" class="mr-2 hidden max-w-[10rem] truncate text-sm text-zinc-500 sm:inline"></span>
+          <button id="btn-notif" data-acao="notif" type="button" class="rounded-lg p-2 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100" aria-label="Notificações" title="Notificações">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 01-3.4 0"></path></svg>
+          </button>
+          <button data-acao="sair" type="button" class="rounded-lg px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100">Sair</button>
+        </div>
+      </div>
+    </header>
+
+    <div id="banner-offline" class="hidden bg-amber-950 px-4 py-2 text-center text-sm text-amber-300">Sem conexão — mostrando os últimos dados salvos.</div>
+
+    <main class="mx-auto max-w-5xl px-4 py-6 pb-28 md:pb-10">
+      <!-- Cards do dashboard (RF03) -->
+      <section class="grid gap-3 md:grid-cols-3" aria-label="Resumo financeiro">
+        <article class="rounded-2xl border border-zinc-800 bg-zinc-950 p-5">
+          <p class="text-sm text-zinc-400">Gasto fixo mensal</p>
+          <p id="card-mensal" class="mt-2 text-3xl font-semibold tabular-nums text-green-500">—</p>
+          <p class="mt-2 text-xs text-zinc-500">Contas anuais entram rateadas (÷ 12): é quanto guardar por mês.</p>
+        </article>
+        <article class="rounded-2xl border border-zinc-800 bg-zinc-950 p-5">
+          <p class="text-sm text-zinc-400">Projeção anual</p>
+          <p id="card-anual" class="mt-2 text-3xl font-semibold tabular-nums text-green-500">—</p>
+          <p class="mt-2 text-xs text-zinc-500">Estimativa de gastos acumulados em 12 meses.</p>
+        </article>
+        <article class="rounded-2xl border border-zinc-800 bg-zinc-950 p-5">
+          <p class="text-sm text-zinc-400">Compromissos ativos</p>
+          <p id="card-ativos" class="mt-2 text-3xl font-semibold tabular-nums">—</p>
+          <div id="card-alertas" class="mt-2 space-y-1 text-sm"></div>
+        </article>
+      </section>
+
+      <!-- Lista de contas (RF02) -->
+      <section class="mt-8">
+        <div class="mb-3 flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Minhas contas</h2>
+          <button data-acao="nova" type="button" class="hidden rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-500 md:inline-flex">+ Nova conta</button>
+        </div>
+
+        <p id="lista-vazia" class="rounded-2xl border border-dashed border-zinc-800 px-4 py-10 text-center text-sm text-zinc-500">Carregando…</p>
+
+        <div id="bloco-contas" class="hidden">
+          <!-- Desktop: tabela -->
+          <div class="hidden overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 md:block">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-zinc-900/60 text-xs uppercase tracking-wide text-zinc-500">
+                <tr>
+                  <th class="px-4 py-3 font-medium">Conta</th>
+                  <th class="px-4 py-3 font-medium">Valor</th>
+                  <th class="px-4 py-3 font-medium">Ciclo</th>
+                  <th class="px-4 py-3 font-medium">Vencimento</th>
+                  <th class="px-4 py-3 text-right font-medium">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-contas"></tbody>
+            </table>
+          </div>
+          <!-- Celular: lista estilo extrato -->
+          <ul id="lista-mobile" class="divide-y divide-zinc-900 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 md:hidden"></ul>
+        </div>
+      </section>
+    </main>
+
+    <!-- Botão flutuante (+) no celular -->
+    <button data-acao="nova" type="button" aria-label="Nova conta" class="fab-pos fixed z-40 flex h-14 w-14 items-center justify-center rounded-full bg-green-600 text-3xl font-light leading-none text-white shadow-lg shadow-black/60 hover:bg-green-500 md:hidden">+</button>
+  </div>
+
+  <!-- ===================== DIÁLOGOS ===================== -->
+
+  <!-- Nova / editar conta -->
+  <dialog id="dlg-conta" class="m-auto w-[calc(100%-1.5rem)] max-w-md rounded-2xl border border-zinc-800 bg-zinc-950 p-0">
+    <form id="form-conta" class="p-5" novalidate>
+      <h2 id="conta-titulo" class="text-lg font-semibold">Nova conta</h2>
+      <input type="hidden" id="conta-id">
+
+      <div class="mt-4 space-y-4">
+        <div>
+          <label for="conta-nome" class="mb-1 block text-sm text-zinc-400">Nome</label>
+          <input id="conta-nome" type="text" maxlength="100" autocomplete="off" required class="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-base text-zinc-100 placeholder-zinc-600 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500" placeholder="Ex.: Netflix, Aluguel, Internet">
+          <p id="erro-nome" class="mt-1 hidden text-xs text-red-400"></p>
+        </div>
+        <div>
+          <label for="conta-categoria" class="mb-1 block text-sm text-zinc-400">Categoria</label>
+          <input id="conta-categoria" type="text" maxlength="50" list="lista-categorias" autocomplete="off" required class="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-base text-zinc-100 placeholder-zinc-600 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500" placeholder="Casa, Lazer, Trabalho…">
+          <datalist id="lista-categorias">
+            <option value="Casa"></option><option value="Lazer"></option><option value="Trabalho"></option>
+            <option value="Saúde"></option><option value="Transporte"></option><option value="Educação"></option>
+            <option value="Assinaturas"></option><option value="Outros"></option>
+          </datalist>
+          <p id="erro-categoria" class="mt-1 hidden text-xs text-red-400"></p>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="conta-valor" class="mb-1 block text-sm text-zinc-400">Valor (R$)</label>
+            <input id="conta-valor" type="text" inputmode="decimal" autocomplete="off" required class="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-base text-zinc-100 placeholder-zinc-600 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500" placeholder="0,00">
+            <p id="erro-valor" class="mt-1 hidden text-xs text-red-400"></p>
+          </div>
+          <div>
+            <label for="conta-ciclo" class="mb-1 block text-sm text-zinc-400">Ciclo</label>
+            <select id="conta-ciclo" class="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-base text-zinc-100 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">
+              <option value="mensal">Mensal</option>
+              <option value="anual">Anual</option>
+              <option value="semanal">Semanal</option>
+            </select>
+            <p id="erro-ciclo" class="mt-1 hidden text-xs text-red-400"></p>
+          </div>
+        </div>
+        <div>
+          <label for="conta-venc" class="mb-1 block text-sm text-zinc-400">Próximo vencimento</label>
+          <input id="conta-venc" type="date" required class="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-base text-zinc-100 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">
+          <p id="erro-proximo_vencimento" class="mt-1 hidden text-xs text-red-400"></p>
+        </div>
+        <label id="bloco-ativa" class="hidden items-center gap-2 text-sm text-zinc-300">
+          <input id="conta-ativa" type="checkbox" class="h-4 w-4 rounded border-zinc-700 bg-zinc-900 accent-green-600">
+          Conta ativa <span class="text-zinc-600">(desmarque para pausar)</span>
+        </label>
+      </div>
+
+      <p id="erro-form" role="alert" class="mt-4 hidden text-sm text-red-400"></p>
+
+      <div class="mt-6 flex justify-end gap-2">
+        <button type="button" data-acao="fechar" class="rounded-lg px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-900">Cancelar</button>
+        <button id="btn-salvar-conta" type="submit" class="rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-500 disabled:opacity-60">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Ações da conta (celular) -->
+  <dialog id="dlg-acoes" class="m-0 mt-auto w-full max-w-none rounded-t-2xl border border-zinc-800 bg-zinc-950 p-0 md:m-auto md:max-w-sm md:rounded-2xl">
+    <div class="p-5 sheet-safe">
+      <h2 id="sheet-titulo" class="truncate text-lg font-semibold"></h2>
+      <p id="sheet-sub" class="mt-0.5 text-sm text-zinc-500"></p>
+      <div class="mt-4 flex flex-col gap-2">
+        <button id="sheet-pagar" type="button" data-acao="pagar" class="rounded-lg bg-green-600 px-4 py-3 text-sm font-semibold text-white hover:bg-green-500 disabled:opacity-40">Marcar como pago</button>
+        <button type="button" data-acao="editar" class="rounded-lg bg-zinc-900 px-4 py-3 text-sm text-zinc-100 hover:bg-zinc-800">Editar</button>
+        <button type="button" data-acao="excluir" class="rounded-lg bg-zinc-900 px-4 py-3 text-sm text-red-400 hover:bg-zinc-800">Excluir</button>
+        <button type="button" data-acao="fechar" class="rounded-lg px-4 py-3 text-sm text-zinc-500 hover:bg-zinc-900">Cancelar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Confirmação -->
+  <dialog id="dlg-confirmar" class="m-auto w-[calc(100%-1.5rem)] max-w-sm rounded-2xl border border-zinc-800 bg-zinc-950 p-0">
+    <form method="dialog" class="p-5">
+      <h2 id="confirmar-titulo" class="text-lg font-semibold"></h2>
+      <p id="confirmar-texto" class="mt-2 text-sm text-zinc-400"></p>
+      <div class="mt-6 flex justify-end gap-2">
+        <button value="cancel" class="rounded-lg px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-900">Cancelar</button>
+        <button id="confirmar-ok" value="ok" class="rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-500">Confirmar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Notificações push -->
+  <dialog id="dlg-notif" class="m-auto w-[calc(100%-1.5rem)] max-w-sm rounded-2xl border border-zinc-800 bg-zinc-950 p-0">
+    <div class="p-5">
+      <h2 class="text-lg font-semibold">Notificações</h2>
+      <p id="notif-status" class="mt-2 text-sm text-zinc-300"></p>
+      <p id="notif-dica" class="mt-2 hidden text-xs text-zinc-500"></p>
+      <div class="mt-5 flex flex-col gap-2">
+        <button id="btn-push-ativar" type="button" data-acao="push-ativar" class="hidden rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-500 disabled:opacity-60">Ativar notificações</button>
+        <button id="btn-push-teste" type="button" data-acao="push-teste" class="hidden rounded-lg bg-zinc-900 px-4 py-2.5 text-sm text-zinc-100 hover:bg-zinc-800 disabled:opacity-60">Enviar notificação de teste</button>
+        <button id="btn-push-desativar" type="button" data-acao="push-desativar" class="hidden rounded-lg bg-zinc-900 px-4 py-2.5 text-sm text-red-400 hover:bg-zinc-800 disabled:opacity-60">Desativar neste dispositivo</button>
+        <button type="button" data-acao="fechar" class="rounded-lg px-4 py-2.5 text-sm text-zinc-500 hover:bg-zinc-900">Fechar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

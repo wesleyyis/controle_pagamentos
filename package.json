@@ -1,0 +1,28 @@
+{
+  "name": "controle-pagamentos",
+  "version": "1.0.0",
+  "description": "PWA de controle de contas fixas, boletos e assinaturas com notificações Web Push em segundo plano.",
+  "main": "server.js",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "vapid": "web-push generate-vapid-keys",
+    "alertas": "node src/jobs/rodar-alertas.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.11.0",
+    "node-cron": "^3.0.3",
+    "web-push": "^3.6.7"
+  }
+}

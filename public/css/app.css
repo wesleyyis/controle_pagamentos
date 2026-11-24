@@ -1,0 +1,21 @@
+/* Complementos ao Tailwind (CDN): safe-area do celular e diálogos */
+:root { color-scheme: dark; }
+html { -webkit-tap-highlight-color: transparent; }
+
+.safe-top { padding-top: env(safe-area-inset-top, 0px); }
+.fab-pos {
+  right: 1.25rem;
+  bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+}
+.sheet-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+dialog { color: #f4f4f5; max-height: 90vh; overflow-y: auto; }
+dialog::backdrop { background: rgb(0 0 0 / 0.75); }
+
+@keyframes subir {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  dialog[open] { animation: subir 0.18s ease-out; }
+}

@@ -1,0 +1,25 @@
+# Site 100% estático: sem build. Netlify publica a pasta "public".
+[build]
+  publish = "public"
+
+# Segurança: a CSP libera apenas o próprio site, o Tailwind (CDN) e o Supabase.
+# Se o console mostrar erro de 'unsafe-eval' com o Tailwind CDN, acrescente 'unsafe-eval' em script-src.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.supabase.co https://cdn.tailwindcss.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# O Service Worker e o manifest nunca podem ficar presos em cache,
+# senão as atualizações do app demoram a chegar no celular.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+    Service-Worker-Allowed = "/"
+
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Cache-Control = "no-cache"

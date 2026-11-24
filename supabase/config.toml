@@ -1,0 +1,10 @@
+# Configuração mínima do Supabase CLI para publicar as Edge Functions.
+project_id = "controle-pagamentos"
+
+# As duas funções fazem a própria autenticação (segredo do cron / token do usuário),
+# por isso o gateway não exige o JWT.
+[functions.alertas]
+verify_jwt = false
+
+[functions.push-test]
+verify_jwt = false
