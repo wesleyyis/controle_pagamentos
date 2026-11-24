@@ -90,7 +90,14 @@ async function enviarAuth(e, modo) {
       modo === 'login'
         ? await api.login(dados.email, dados.senha)
         : await api.registrar(dados.nome, dados.email, dados.senha);
-    sessao.salvar(resposta);
+
+    // Com "Confirm email" ligado, o Supabase não devolve sessão no cadastro.
+    if (resposta && resposta.precisaConfirmar) {
+      erro.textContent = 'Confirme seu e-mail antes de entrar. Verifique sua caixa de entrada.';
+      erro.classList.remove('hidden');
+      return;
+    }
+
     form.reset();
     await entrar();
   } catch (err) {
@@ -116,8 +123,9 @@ async function entrar() {
 }
 
 function limparSessaoLocal() {
+  document.querySelectorAll('dialog[open]').forEach((d) => d.close());
   sessao.limpar();
-  localStorage.removeItem(CACHE_KEY);
+  sessionStorage.removeItem(CACHE_KEY);
   estado.resumo = null;
   estado.contas = [];
   estado.carregado = false;
@@ -126,6 +134,7 @@ function limparSessaoLocal() {
 
 async function sair() {
   await push.desvincularServidor().catch(() => {});
+  await api.sair().catch(() => {}); // revoga a sessão no Supabase antes de apagar o token local
   limparSessaoLocal();
 }
 
@@ -135,7 +144,7 @@ async function sair() {
 function salvarCache() {
   try {
     const u = sessao.usuario();
-    localStorage.setItem(
+    sessionStorage.setItem(
       CACHE_KEY,
       JSON.stringify({ uid: u && u.id, resumo: estado.resumo, contas: estado.contas })
     );
@@ -144,7 +153,7 @@ function salvarCache() {
 
 function lerCache() {
   try {
-    const c = JSON.parse(localStorage.getItem(CACHE_KEY));
+    const c = JSON.parse(sessionStorage.getItem(CACHE_KEY));
     const u = sessao.usuario();
     if (c && u && c.uid === u.id && c.resumo) {
       estado.resumo = c.resumo;
@@ -156,9 +165,9 @@ function lerCache() {
 
 async function carregarDados() {
   try {
-    const [resumo, lista] = await Promise.all([api.resumo(), api.contas()]);
-    estado.resumo = resumo;
-    estado.contas = lista.contas;
+    const dados = await api.carregar();
+    estado.resumo = dados.resumo;
+    estado.contas = dados.contas;
     estado.carregado = true;
     salvarCache();
     $('banner-offline').classList.add('hidden');

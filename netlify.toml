@@ -2,12 +2,12 @@
 [build]
   publish = "public"
 
-# Segurança: a CSP libera apenas o próprio site, o Tailwind (CDN) e o Supabase.
-# Se o console mostrar erro de 'unsafe-eval' com o Tailwind CDN, acrescente 'unsafe-eval' em script-src.
+# Segurança: a CSP libera apenas o próprio site e o Supabase.
+# O CSS do Tailwind é gerado no build (npm run css) e servido localmente.
 [[headers]]
   for = "/*"
   [headers.values]
-    Content-Security-Policy = "default-src 'self'; script-src 'self' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.supabase.co https://cdn.tailwindcss.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://*.supabase.co; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
 

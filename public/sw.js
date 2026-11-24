@@ -1,27 +1,32 @@
 'use strict';
 
 /**
- * Service Worker do Controle de Pagamentos
- *  1) Cache do "casco" do app (HTML, JS, CSS, ícones, Tailwind) -> abre instantâneo e offline.
+ * Service Worker do Controle de Pagamentos (versão canônica).
+ *  1) Cache do "casco" do app (HTML, JS, CSS, ícones, Tailwind) -> abre offline.
  *  2) Web Push: mostra a notificação na tela de bloqueio mesmo com o app fechado.
  *
  * IMPORTANTE: ao alterar qualquer arquivo de public/, aumente VERSAO para que os
  * aparelhos já instalados descartem o cache antigo.
  */
-const VERSAO = 'v1';
+const VERSAO = 'v4';
 const CACHE = `cp-casco-${VERSAO}`;
-const TAILWIND = 'https://cdn.tailwindcss.com/3.4.17';
 
 const CASCO = [
   '/',
+  '/css/tailwind.css',
   '/css/app.css',
   '/js/app.js',
   '/js/api.js',
   '/js/format.js',
+  '/js/config.js',
+  '/js/datas.js',
+  '/js/calculos.js',
+  '/js/validacao.js',
   '/js/push.js',
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
+  '/icons/icon-maskable-512.png',
   '/icons/apple-touch-icon.png',
   '/icons/badge-72.png',
 ];
@@ -32,13 +37,6 @@ self.addEventListener('install', (event) => {
     (async () => {
       const cache = await caches.open(CACHE);
       await cache.addAll(CASCO);
-      // Resposta "opaca" (no-cors) não passa em cache.add(); guardamos com put()
-      try {
-        const resposta = await fetch(new Request(TAILWIND, { mode: 'no-cors' }));
-        await cache.put(TAILWIND, resposta);
-      } catch (err) {
-        console.warn('[sw] Tailwind não foi pré-carregado:', err);
-      }
       await self.skipWaiting();
     })()
   );
@@ -48,62 +46,61 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
       const nomes = await caches.keys();
-      await Promise.all(nomes.filter((n) => n.startsWith('cp-casco-') && n !== CACHE).map((n) => caches.delete(n)));
+      await Promise.all(
+        nomes.filter((n) => n.startsWith('cp-casco-') && n !== CACHE).map((n) => caches.delete(n))
+      );
       await self.clients.claim();
     })()
   );
 });
 
-// ---------------------------------------------------------------- cache
-async function navegacao(event) {
-  const cache = await caches.open(CACHE);
-  const guardado = await cache.match('/');
-  const rede = fetch(event.request)
-    .then((resp) => {
-      if (resp.ok) cache.put('/', resp.clone());
-      return resp;
-    })
-    .catch(() => null);
-
-  if (guardado) {
-    event.waitUntil(rede); // atualiza o cache em segundo plano
-    return guardado;
+// Grava no cache e só retorna quando a gravação terminou (evita cache intermitente).
+async function guardar(cache, chave, resposta) {
+  if (resposta && resposta.ok) {
+    await cache.put(chave, resposta.clone());
   }
-  return (
-    (await rede) ||
-    new Response('Sem conexão.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
-  );
+  return resposta;
 }
 
+// ---------------------------------------------------------------- cache
+// Navegação: rede primeiro, para o deploy novo aparecer já na primeira visita.
+async function navegacao(event) {
+  const cache = await caches.open(CACHE);
+  try {
+    const resposta = await fetch(event.request);
+    if (resposta.ok) await guardar(cache, '/', resposta);
+    return resposta;
+  } catch {
+    return (
+      (await cache.match('/')) ||
+      new Response('Sem conexão.', {
+        status: 503,
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      })
+    );
+  }
+}
+
+// Assets do próprio site: cache primeiro, atualização em segundo plano.
 async function guardadoEAtualiza(event) {
   const cache = await caches.open(CACHE);
   const guardado = await cache.match(event.request);
-  const rede = fetch(event.request)
-    .then((resp) => {
-      if (resp.ok) cache.put(event.request, resp.clone());
-      return resp;
-    })
-    .catch(() => guardado || Response.error());
+
+  const rede = (async () => {
+    try {
+      const resposta = await fetch(event.request);
+      await guardar(cache, event.request, resposta);
+      return resposta;
+    } catch {
+      return guardado || Response.error();
+    }
+  })();
 
   if (guardado) {
     event.waitUntil(rede);
     return guardado;
   }
   return rede;
-}
-
-async function guardadoPrimeiro(event) {
-  const cache = await caches.open(CACHE);
-  const guardado = await cache.match(event.request);
-  if (guardado) return guardado;
-  try {
-    const resp = await fetch(event.request);
-    // opaque (status 0) é o caso normal de script de CDN sem CORS
-    if (resp.ok || resp.type === 'opaque') cache.put(event.request, resp.clone());
-    return resp;
-  } catch {
-    return Response.error();
-  }
 }
 
 self.addEventListener('fetch', (event) => {
@@ -120,10 +117,6 @@ self.addEventListener('fetch', (event) => {
     }
     event.respondWith(guardadoEAtualiza(event));
     return;
-  }
-
-  if (req.url === TAILWIND) {
-    event.respondWith(guardadoPrimeiro(event));
   }
 });
 
@@ -149,13 +142,22 @@ self.addEventListener('push', (event) => {
     data: { url: dados.url || '/' },
   };
 
-  // Todo push precisa exibir uma notificação (exigência do userVisibleOnly)
+  // Todo push precisa exibir uma notificação (exigência do userVisibleOnly).
   event.waitUntil(self.registration.showNotification(titulo, opcoes));
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const alvo = new URL((event.notification.data && event.notification.data.url) || '/', self.location.origin).href;
+
+  // Nunca abre origem externa, mesmo que o payload do push seja alterado.
+  let alvo = '/';
+  try {
+    const informado = (event.notification.data && event.notification.data.url) || '/';
+    const url = new URL(informado, self.location.origin);
+    if (url.origin === self.location.origin) alvo = url.pathname + url.search + url.hash;
+  } catch {
+    // mantém '/'
+  }
 
   event.waitUntil(
     (async () => {

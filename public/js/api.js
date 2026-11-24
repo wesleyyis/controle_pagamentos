@@ -21,11 +21,11 @@ export class ApiError extends Error {
 let aoExpirar = () => {};
 
 // ======================================================================
-// Sessão (guardada no localStorage)
+// Sessão (sessionStorage: some ao fechar a aba, nunca fica persistida no disco)
 // ======================================================================
 function lerSessao() {
   try {
-    return JSON.parse(localStorage.getItem(SESSAO_KEY));
+    return JSON.parse(sessionStorage.getItem(SESSAO_KEY));
   } catch {
     return null;
   }
@@ -35,9 +35,11 @@ export const sessao = {
   token: () => (lerSessao() || {}).access_token || null,
   usuario: () => (lerSessao() || {}).usuario || null,
   limpar() {
-    localStorage.removeItem(SESSAO_KEY);
-    localStorage.removeItem('cp_token'); // restos da versão com backend próprio
+    sessionStorage.removeItem(SESSAO_KEY);
+    // Restos da versão com backend próprio, que usava localStorage.
+    localStorage.removeItem('cp_token');
     localStorage.removeItem('cp_usuario');
+    localStorage.removeItem(SESSAO_KEY);
   },
 };
 
@@ -49,7 +51,7 @@ function salvarSessao(dados) {
     nome: (u.user_metadata && u.user_metadata.nome) || String(u.email || '').split('@')[0],
   };
   const expiraEm = dados.expires_at || Math.floor(Date.now() / 1000) + (dados.expires_in || 3600);
-  localStorage.setItem(
+  sessionStorage.setItem(
     SESSAO_KEY,
     JSON.stringify({
       access_token: dados.access_token,

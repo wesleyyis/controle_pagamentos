@@ -216,7 +216,7 @@ revoke all on public.push_subscriptions from anon;
 revoke all on public.push_subscriptions from authenticated;
 grant all on public.push_subscriptions to service_role;
 
--- Se o mesmo aparelho já estava inscrito por outro usuário, passa a ser do usuário atual.
+-- Só serviços push oficiais; uma inscrição não muda de dono automaticamente.
 create or replace function public.registrar_push(
   p_endpoint text, p_p256dh text, p_auth text, p_user_agent text default null
 )
@@ -227,21 +227,37 @@ set search_path = ''
 as $$
 declare
   v_uid uuid := auth.uid();
+  v_host text;
 begin
   if v_uid is null then
     raise exception 'Autenticação necessária.' using errcode = 'PT401';
   end if;
+
+  v_host := lower(substring(p_endpoint from '^https://([^/:?#]+)'));
   if p_endpoint is null or p_endpoint !~ '^https://' or char_length(p_endpoint) > 2048
-     or coalesce(p_p256dh, '') = '' or char_length(p_p256dh) > 255
-     or coalesce(p_auth, '') = '' or char_length(p_auth) > 255 then
+     or p_endpoint ~ '^https://[^/]+:[0-9]+'
+     or v_host is null
+     or not (
+       v_host in ('fcm.googleapis.com', 'updates.push.services.mozilla.com',
+                  'web.push.apple.com', 'api.push.apple.com')
+       or v_host like '%.notify.windows.com'
+     )
+     or coalesce(p_p256dh, '') !~ '^[A-Za-z0-9_-]+$' or char_length(p_p256dh) > 255
+     or coalesce(p_auth, '') !~ '^[A-Za-z0-9_-]+$' or char_length(p_auth) > 255 then
     raise exception 'Inscrição push inválida.' using errcode = 'PT400';
+  end if;
+
+  if exists (
+    select 1 from public.push_subscriptions
+    where endpoint = p_endpoint and user_id <> v_uid
+  ) then
+    raise exception 'Inscrição já vinculada a outro usuário.' using errcode = 'PT409';
   end if;
 
   insert into public.push_subscriptions (user_id, endpoint, p256dh, auth_key, user_agent)
   values (v_uid, p_endpoint, p_p256dh, p_auth, left(p_user_agent, 255))
   on conflict (endpoint) do update
-    set user_id = excluded.user_id,
-        p256dh = excluded.p256dh,
+    set p256dh = excluded.p256dh,
         auth_key = excluded.auth_key,
         user_agent = excluded.user_agent;
 end;

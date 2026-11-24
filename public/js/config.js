@@ -9,5 +9,5 @@
 export const CONFIG = {
   SUPABASE_URL: 'https://xsvrdoosdlcxjbblujsm.supabase.co',
   SUPABASE_ANON_KEY: 'sb_publishable_pKOn5Atl3q-mFwA7rBNo1w_cXpNuitD',
-  VAPID_PUBLIC_KEY: '221d138c08fae60fa6a8392be4a24d29279cc6dac90bb8e14b54dccd02b9677c',
+  VAPID_PUBLIC_KEY: 'BCDEScIhvIgVoyKQrbpsGYsBDD2JrZyo9DH7N8h9dS_pRO58nKO8WOANEvutdWjo1whVaWHrSuOG7RLn_lESFUA',
 };

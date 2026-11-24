@@ -77,8 +77,22 @@ export async function desativar() {
 /** Ao entrar no app: garante que este aparelho está vinculado ao usuário logado. */
 export async function sincronizar() {
   if (!suportado() || Notification.permission !== 'granted') return;
-  const sub = await inscricaoAtual();
-  if (sub) await api.inscrever(sub.toJSON());
+
+  const { publicKey } = await api.chavePublica();
+  const bytes = chaveParaBytes(publicKey);
+  let sub = await inscricaoAtual();
+
+  // Se as chaves VAPID mudaram, a inscrição antiga não serve mais.
+  if (sub && !mesmaChave(sub, bytes)) {
+    await sub.unsubscribe();
+    sub = null;
+  }
+  if (!sub) {
+    const reg = await navigator.serviceWorker.ready;
+    sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bytes });
+  }
+
+  await api.inscrever(sub.toJSON());
 }
 
 /** Ao sair: o servidor para de avisar este aparelho (a inscrição local é mantida). */

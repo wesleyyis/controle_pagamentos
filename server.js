@@ -48,22 +48,17 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
 
-// Segurança de cabeçalhos. A CSP libera apenas o Tailwind via CDN;
-// o frontend não deve usar scripts inline.
+// Segurança de cabeçalhos. O CSS do Tailwind é gerado no build e servido localmente;
+// a CSP libera apenas o próprio site e o Supabase (Auth/PostgREST/Edge Functions).
 app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: [
-          "'self'",
-          'https://cdn.tailwindcss.com',
-          // Só ative se o console mostrar erro de 'unsafe-eval' com o Tailwind CDN
-          ...(process.env.CSP_PERMITIR_EVAL === 'true' ? ["'unsafe-eval'"] : []),
-        ],
-        styleSrc: ["'self'", "'unsafe-inline'"], // Tailwind CDN injeta <style>
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'"],
         imgSrc: ["'self'", 'data:'],
-        connectSrc: ["'self'", 'https://cdn.tailwindcss.com'], // o Service Worker guarda o Tailwind em cache
+        connectSrc: ["'self'", 'https://*.supabase.co'],
         manifestSrc: ["'self'"],
         workerSrc: ["'self'"],
         objectSrc: ["'none'"],

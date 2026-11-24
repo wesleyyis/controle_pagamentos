@@ -6,19 +6,9 @@ const { pool } = require('../../db');
 const { autenticar } = require('../middleware/auth');
 const { asyncHandler } = require('../async');
 const { hashEndpoint, enviarParaUsuario } = require('../lib/push');
+const { validarInscricao } = require('../lib/validacao-push');
 
 const router = express.Router();
-
-function validarInscricao(s) {
-  if (!s || typeof s !== 'object') return null;
-  const { endpoint, keys } = s;
-  if (typeof endpoint !== 'string' || !endpoint.startsWith('https://') || endpoint.length > 2048) {
-    return null;
-  }
-  if (!keys || typeof keys.p256dh !== 'string' || typeof keys.auth !== 'string') return null;
-  if (!keys.p256dh || !keys.auth || keys.p256dh.length > 255 || keys.auth.length > 255) return null;
-  return { endpoint, p256dh: keys.p256dh, auth: keys.auth };
-}
 
 // GET /api/push/public-key  (pública: o navegador precisa dela para assinar)
 router.get('/public-key', (_req, res) => {
@@ -34,18 +24,26 @@ router.post(
     if (!insc) return res.status(400).json({ erro: 'Inscrição push inválida.' });
 
     const userAgent = (req.get('user-agent') || '').slice(0, 255) || null;
+    const hash = hashEndpoint(insc.endpoint);
 
-    // Se o mesmo aparelho já estava inscrito (ex.: outro usuário logou nele),
-    // a inscrição passa a pertencer ao usuário atual.
+    // Um endpoint já vinculado a outro usuário não pode ser transferido só porque
+    // o atacante conhece a URL — isso cortaria as notificações da vítima.
+    const [existentes] = await pool.execute(
+      'SELECT usuario_id FROM push_subscriptions WHERE endpoint_hash = ? LIMIT 1',
+      [hash]
+    );
+    if (existentes.length && Number(existentes[0].usuario_id) !== Number(req.usuario.id)) {
+      return res.status(409).json({ erro: 'Esta inscrição já está vinculada a outro usuário.' });
+    }
+
     await pool.execute(
       `INSERT INTO push_subscriptions (usuario_id, endpoint, endpoint_hash, p256dh, auth, user_agent)
        VALUES (?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
-         usuario_id = VALUES(usuario_id),
          p256dh     = VALUES(p256dh),
          auth       = VALUES(auth),
          user_agent = VALUES(user_agent)`,
-      [req.usuario.id, insc.endpoint, hashEndpoint(insc.endpoint), insc.p256dh, insc.auth, userAgent]
+      [req.usuario.id, insc.endpoint, hash, insc.p256dh, insc.auth, userAgent]
     );
 
     res.status(201).json({ ok: true });
