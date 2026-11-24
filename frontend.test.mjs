@@ -7,6 +7,17 @@ import { fileURLToPath } from 'node:url';
 const raiz = path.dirname(fileURLToPath(import.meta.url));
 const ler = (relativo) => fs.readFileSync(path.join(raiz, relativo), 'utf8');
 
+// Node 26 expõe um localStorage experimental; use stubs em memória nos testes.
+const memLocal = new Map();
+const memSessao = new Map();
+const storagem = (map) => ({
+  getItem: (chave) => (map.has(chave) ? map.get(chave) : null),
+  setItem: (chave, valor) => map.set(chave, String(valor)),
+  removeItem: (chave) => map.delete(chave),
+  clear: () => map.clear(),
+});
+Object.defineProperty(globalThis, 'sessionStorage', { value: storagem(memSessao), configurable: true });
+
 test('frontend: hojeISO respeita America/Sao_Paulo', async () => {
   const { hojeISO } = await import('./public/js/datas.js');
   assert.equal(hojeISO(new Date('2026-11-18T02:00:00Z')), '2026-11-17');
@@ -104,15 +115,27 @@ test('service worker e unico, registrado e com precache completo', () => {
   assert.match(ler('public/js/app.js'), /serviceWorker\.register\('\/sw\.js'\)/);
 });
 
-test('sessao e cache ficam no sessionStorage, nao no localStorage', () => {
+test('manter conectado persiste a sessao; sem isso ela some ao fechar a aba', () => {
   const api = ler('public/js/api.js');
   const app = ler('public/js/app.js');
+  const html = ler('public/index.html');
 
-  assert.match(api, /sessionStorage\.getItem\(SESSAO_KEY\)/);
-  assert.match(api, /sessionStorage\.setItem\(\s*SESSAO_KEY/);
+  assert.match(api, /Boolean\(localStorage\.getItem\(SESSAO_KEY\)\)/);
+  assert.match(api, /persistir \? localStorage : sessionStorage/);
+  assert.match(api, /async login\(email, senha, manterConectado/);
+  assert.match(api, /async registrar\(nome, email, senha, manterConectado/);
+  assert.match(api, /salvarSessao\(dados, manterConectado\)/);
+  assert.match(api, /salvarSessao\(dados, persistir\)/);
+  assert.match(api, /limpar\(\)[\s\S]{0,240}localStorage\.removeItem\(SESSAO_KEY\)/);
+
+  assert.match(app, /manter-conectado/);
+  assert.match(app, /api\.login\(dados\.email, dados\.senha, manterConectado\)/);
+  assert.match(app, /api\.registrar\(dados\.nome, dados\.email, dados\.senha, manterConectado\)/);
+  assert.match(html, /name="manter-conectado" checked/);
+
+  // O cache de dados continua volátil por aba.
   assert.match(app, /sessionStorage\.getItem\(CACHE_KEY\)/);
   assert.match(app, /sessionStorage\.setItem\(\s*CACHE_KEY/);
-  assert.doesNotMatch(api, /localStorage\.setItem\(\s*SESSAO_KEY/);
 });
 
 test('Tailwind e servido localmente, sem CDN na CSP', () => {

@@ -21,11 +21,26 @@ export class ApiError extends Error {
 let aoExpirar = () => {};
 
 // ======================================================================
-// Sessão (sessionStorage: some ao fechar a aba, nunca fica persistida no disco)
+// Sessão: sessionStorage por padrão; localStorage quando "Manter conectado".
 // ======================================================================
+let persistir = false;
+try {
+  persistir = Boolean(localStorage.getItem(SESSAO_KEY));
+} catch {
+  persistir = false;
+}
+
+function storageAtual() {
+  return persistir ? localStorage : sessionStorage;
+}
+
 function lerSessao() {
   try {
-    return JSON.parse(sessionStorage.getItem(SESSAO_KEY));
+    const atual = storageAtual().getItem(SESSAO_KEY);
+    if (atual) return JSON.parse(atual);
+    // Recupera caso a preferência tenha sido perdida após um reload.
+    const outro = (persistir ? sessionStorage : localStorage).getItem(SESSAO_KEY);
+    return outro ? JSON.parse(outro) : null;
   } catch {
     return null;
   }
@@ -34,16 +49,22 @@ function lerSessao() {
 export const sessao = {
   token: () => (lerSessao() || {}).access_token || null,
   usuario: () => (lerSessao() || {}).usuario || null,
+  persistindo: () => persistir,
   limpar() {
     sessionStorage.removeItem(SESSAO_KEY);
+    localStorage.removeItem(SESSAO_KEY);
     // Restos da versão com backend próprio, que usava localStorage.
     localStorage.removeItem('cp_token');
     localStorage.removeItem('cp_usuario');
-    localStorage.removeItem(SESSAO_KEY);
   },
 };
 
-function salvarSessao(dados) {
+function salvarSessao(dados, manterConectado = persistir) {
+  persistir = Boolean(manterConectado);
+  const destino = persistir ? localStorage : sessionStorage;
+  const outro = persistir ? sessionStorage : localStorage;
+  outro.removeItem(SESSAO_KEY);
+
   const u = dados.user || {};
   const usuario = {
     id: u.id,
@@ -51,7 +72,7 @@ function salvarSessao(dados) {
     nome: (u.user_metadata && u.user_metadata.nome) || String(u.email || '').split('@')[0],
   };
   const expiraEm = dados.expires_at || Math.floor(Date.now() / 1000) + (dados.expires_in || 3600);
-  sessionStorage.setItem(
+  destino.setItem(
     SESSAO_KEY,
     JSON.stringify({
       access_token: dados.access_token,
@@ -154,7 +175,7 @@ function renovarSessao() {
       if (resposta.status >= 400 && resposta.status < 500) throw sessaoExpirada();
       throw erroAuth(resposta.status, dados);
     }
-    salvarSessao(dados);
+    salvarSessao(dados, persistir);
   })().finally(() => {
     renovando = null;
   });
@@ -219,7 +240,7 @@ export const api = {
   aoExpirar: (fn) => { aoExpirar = fn; },
 
   // ---------------- autenticação
-  async login(email, senha) {
+  async login(email, senha, manterConectado = false) {
     if (typeof email !== 'string' || typeof senha !== 'string' || !email || !senha) {
       throw new ApiError('Informe e-mail e senha.', 400);
     }
@@ -230,10 +251,10 @@ export const api = {
     });
     const dados = await lerJson(resposta);
     if (!resposta.ok) throw erroAuth(resposta.status, dados);
-    return { usuario: salvarSessao(dados) };
+    return { usuario: salvarSessao(dados, manterConectado) };
   },
 
-  async registrar(nome, email, senha) {
+  async registrar(nome, email, senha, manterConectado = false) {
     const v = validarCadastro({ nome, email, senha });
     if (v.detalhes) throw new ApiError('Dados inválidos.', 400, v.detalhes);
 
@@ -246,7 +267,7 @@ export const api = {
     if (!resposta.ok) throw erroAuth(resposta.status, dados);
 
     // Com "Confirm email" ligado o Supabase não devolve sessão: o usuário precisa confirmar.
-    if (dados && dados.access_token) return { usuario: salvarSessao(dados) };
+    if (dados && dados.access_token) return { usuario: salvarSessao(dados, manterConectado) };
     return { precisaConfirmar: true };
   },
 

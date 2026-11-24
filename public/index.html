@@ -47,6 +47,10 @@
             <label for="login-senha" class="mb-1 block text-sm text-zinc-400">Senha</label>
             <input id="login-senha" name="senha" type="password" autocomplete="current-password" required class="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-base text-zinc-100 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">
           </div>
+          <label class="flex items-center gap-2 text-sm text-zinc-400">
+            <input type="checkbox" name="manter-conectado" checked class="h-4 w-4 rounded border-zinc-700 bg-zinc-900 accent-green-600">
+            Manter conectado neste aparelho
+          </label>
           <button type="submit" class="w-full rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-500 disabled:opacity-60">Entrar</button>
         </form>
 
@@ -63,6 +67,10 @@
             <label for="cad-senha" class="mb-1 block text-sm text-zinc-400">Senha <span class="text-zinc-600">(mínimo 8 caracteres)</span></label>
             <input id="cad-senha" name="senha" type="password" autocomplete="new-password" minlength="8" required class="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-base text-zinc-100 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">
           </div>
+          <label class="flex items-center gap-2 text-sm text-zinc-400">
+            <input type="checkbox" name="manter-conectado" checked class="h-4 w-4 rounded border-zinc-700 bg-zinc-900 accent-green-600">
+            Manter conectado neste aparelho
+          </label>
           <button type="submit" class="w-full rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-500 disabled:opacity-60">Criar conta</button>
         </form>
 

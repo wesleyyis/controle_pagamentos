@@ -86,10 +86,13 @@ async function enviarAuth(e, modo) {
   botao.textContent = 'Aguarde…';
 
   try {
+    const manterConectado = Boolean(
+      form.elements['manter-conectado'] && form.elements['manter-conectado'].checked
+    );
     const resposta =
       modo === 'login'
-        ? await api.login(dados.email, dados.senha)
-        : await api.registrar(dados.nome, dados.email, dados.senha);
+        ? await api.login(dados.email, dados.senha, manterConectado)
+        : await api.registrar(dados.nome, dados.email, dados.senha, manterConectado);
 
     // Com "Confirm email" ligado, o Supabase não devolve sessão no cadastro.
     if (resposta && resposta.precisaConfirmar) {
