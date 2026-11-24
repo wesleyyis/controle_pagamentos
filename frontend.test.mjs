@@ -16,6 +16,7 @@ const storagem = (map) => ({
   removeItem: (chave) => map.delete(chave),
   clear: () => map.clear(),
 });
+Object.defineProperty(globalThis, 'localStorage', { value: storagem(memLocal), configurable: true });
 Object.defineProperty(globalThis, 'sessionStorage', { value: storagem(memSessao), configurable: true });
 
 test('frontend: hojeISO respeita America/Sao_Paulo', async () => {
